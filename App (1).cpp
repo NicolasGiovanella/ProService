@@ -2,6 +2,8 @@
 
 int createDb(const char* s);//cria banco
 int createTable(const char* s);//criar tabela no banco
+int updateData(const char* s);//att valor no banco
+int deleteData(const char* s);//deleta valor no banco
 int insertData(const char* s);//inserir dados
 int selectData(const char* s);//imprimi dados
 int callback(void* NotUsed, int argc, char** argv, char** azColName);
@@ -81,6 +83,59 @@ int insertData(const char* s, const char* nome, const char* login, const char* s
     return 0;
 }
 
+int deleteData(const char* s)
+{
+    sqlite3* DB;
+    char* messageError;
+
+    string id;
+    cout << "Digite o id do user a ser excluido: ";
+    cin >> id;
+
+    string sql = "DELETE FROM user WHERE ID = '" + id + "';";
+
+    int exit = sqlite3_open(s, &DB);
+    exit = sqlite3_exec(DB, sql.c_str(), NULL, NULL, &messageError);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Error in deleteData function." << endl;
+        sqlite3_free(messageError);
+    }
+    else {
+        cout << "Record deleted successfully!" << endl;
+    }
+
+    return 0;
+}
+
+int updateData(const char* s)
+{
+    sqlite3* DB;
+    char* messageError;
+
+    string id;
+    string nomeAlterado;
+
+    cout << "Qual o ID do user que voce quer alterar? " << endl;
+    cin >> id;
+    cout << "Digite o novo nome: " << endl;
+    cin >> nomeAlterado;
+
+    string sql("UPDATE user SET nome = '" + nomeAlterado + "' WHERE ID = '" + id + "'");
+
+    int exit = sqlite3_open(s, &DB);
+    /* An open database, SQL to be evaluated, Callback function, 1st argument to callback, Error msg written here */
+    exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messageError);
+    if (exit != SQLITE_OK) {
+        cerr << "Error in updateData function." << endl;
+        sqlite3_free(messageError);
+    }
+    else
+        cout << "Records updated Successfully!" << endl;
+
+    return 0;
+}
+
 int selectData(const char* s)
 {
     sqlite3* DB;
@@ -102,8 +157,6 @@ int selectData(const char* s)
     return 0;
 }
 
-// retrieve contents of database used by selectData()
-/* argc: holds the number of results, argv: holds each value in array, azColName: holds each column returned in array, */
 int callback(void* NotUsed, int argc, char** argv, char** azColName)
 {
     for (int i = 0; i < argc; i++) {
@@ -548,14 +601,16 @@ void App::start() { // em c++ precisar construir o metod fora da classe
     createDb(dir);
     createTable(dir);
 
-    while (opcao != 6) {
+    while (opcao != 8) {
         cout << "******** Bem Vindo A Tela De Inicio ********\n"
             << "1-Cadastro:\n"
             << "2-Login:\n"
             << "3-Listar Usuario:\n"
             << "4-Listar Prestador:\n"
             << "5-Banco de dados:\n"
-            << "6-Sair:\n";
+            << "6-Delete user:\n"
+            << "7-Edita user:\n"
+            << "8-Sair:\n";
         cin >> opcao;
         switch (opcao) {
         case 1:
@@ -584,7 +639,13 @@ void App::start() { // em c++ precisar construir o metod fora da classe
         case 5:
             selectData(dir);
             break;
-        case 6: // opção para sair do sistema.
+        case 6:
+            deleteData(dir);
+            break;
+        case 7:
+            updateData(dir);
+            break;
+        case 8: // opção para sair do sistema.
             break;
         default:
             cout << "Comando invalido!" << endl;
