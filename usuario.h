@@ -2,6 +2,7 @@
 #include <list>
 #include <string>
 #include <locale.h>
+#include <Windows.h>
 #include <queue>//lista
 //#include <winsock2.h>//socket chat
 //#include <WS2tcpip.h>//tcp chat
@@ -44,6 +45,6 @@ public:
 };
 
 
-//cout <<"Fale um pouco do problema que está ocorrendo\n:";
+//cout <<"Fale um pouco do problema que estÃ¡ ocorrendo\n:";
     //  cin >> user.texto[id];
     //  cout << user.texto[id]; 
