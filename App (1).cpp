@@ -6,7 +6,9 @@ int updateData(const char* s);//att valor no banco
 int deleteData(const char* s);//deleta valor no banco
 int insertData(const char* s);//inserir dados
 int selectData(const char* s);//imprimi dados
+int callbackCheckNome(void* data, int argc, char** argv, char** azColName);
 int callback(void* NotUsed, int argc, char** argv, char** azColName);
+int callbackGetID(void* data, int argc, char** argv, char** azColName);
 
 int createDb(const char* s) {
     sqlite3* DB;
@@ -55,19 +57,58 @@ int createTable(const char* s) {
     return 0;
 }
 
-int insertData(const char* s, const char* nome, const char* login, const char* senha, const char* cidade, const char* bairro, const char* servico) {
+int createTablePrestador(const char* s) {
+    sqlite3* DB;
+
+    string sql = "CREATE TABLE IF NOT EXISTS prest("
+        "ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "nome  TEXT NOT NULL,"
+        "login  TEXT NOT NULL,"
+        "senha  TEXT NOT NULL,"
+        "cidade  TEXT NOT NULL,"
+        "bairro  TEXT NOT NULL,"
+        "funcao  TEXT NOT NULL,"
+        "servico  TEXT NOT NULL);";
+
+    try {
+        int exit = 0;
+        exit = sqlite3_open(s, &DB);
+
+        char* messaggeError;
+        exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messaggeError);
+
+        if (exit != SQLITE_OK) {
+            cerr << "ERROR CREATE TABLE" << endl;
+            sqlite3_free(messaggeError);
+        }
+        else {
+            cout << "TABLE CREATE SUCCESSFULLY" << endl;
+            sqlite3_close(DB);
+        }
+
+    }
+    catch (const exception& e) {
+        cerr << e.what();
+    }
+
+    return 0;
+}
+
+int insertData(const char* s,const char* nome, const char* login, const char* senha, const char* cidade, const char* bairro, const char* servico) {
     sqlite3* DB;
     char* messaggeError;
-
+    bool teste = true;
     int exit = sqlite3_open(s, &DB);
 
-    string sql = "INSERT INTO user (nome, login, senha, cidade, bairro, servico) VALUES ('" +
-        string(nome) + "', '" +
-        string(login) + "', '" +
-        string(senha) + "', '" +
-        string(cidade) + "', '" +
-        string(bairro) + "', '" +
-        string(servico) + "');";
+
+        string sql = "INSERT INTO user (nome, login, senha, cidade, bairro, servico) VALUES ('" +
+            string(nome) + "', '" +
+            string(login) + "', '" +
+            string(senha) + "', '" +
+            string(cidade) + "', '" +
+           string(bairro) + "', '" +
+           string(servico) + "');";
+    
 
     exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messaggeError);
 
@@ -80,6 +121,134 @@ int insertData(const char* s, const char* nome, const char* login, const char* s
         sqlite3_close(DB);
     }
 
+    return 0;
+}
+
+int insertPrestador(const char* s, const char* nome, const char* login, const char* senha, const char* cidade, const char* bairro, const char* funcao,const char* servico) {
+    sqlite3* DB;
+    char* messaggeError;
+    bool teste = true;
+    int exit = sqlite3_open(s, &DB);
+
+
+    string sql = "INSERT INTO prest (nome, login, senha, cidade, bairro, funcao, servico) VALUES ('" +
+        string(nome) + "', '" +
+        string(login) + "', '" +
+        string(senha) + "', '" +
+        string(cidade) + "', '" +
+        string(bairro) + "', '" +
+        string(funcao) + "', '" +
+        string(servico) + "');";
+
+
+    exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messaggeError);
+
+    if (exit != SQLITE_OK) {
+        cerr << "ERROR INSERT: " << messaggeError << endl;
+        sqlite3_free(messaggeError);
+    }
+    else {
+        cout << "INSERT SUCCESSFULLY" << endl;
+        sqlite3_close(DB);
+    }
+
+    return 0;
+}
+
+bool verificaNome(const char* s, const char* user, const char* table)
+{
+    sqlite3* DB;
+    char* messageError;
+    int count = 0;
+
+    string sql = "SELECT COUNT(*) FROM "+ string(table) +" WHERE login = '" + string(user) + "'; ";
+
+    int exit = sqlite3_open(s, &DB);
+    /* An open database, SQL to be evaluated, Callback function, 1st argument to callback, Error msg written here*/
+    exit = sqlite3_exec(DB, sql.c_str(), callbackCheckNome, &count, &messageError);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Error in selectData function." << endl;
+        sqlite3_free(messageError);
+    }
+    else
+        cout << "Records selected Successfully!" << endl;
+
+    if (count > 0) {
+       // cout << "O nome de usuário já existe." << endl;
+        return true;
+    }
+    else {
+       // cout << "nome não existe" << endl;
+        return false;
+    }
+    
+}
+
+enum TipoLogin {
+    INVALIDO,
+    USER,
+    PREST
+};
+
+TipoLogin verificarCredenciais(const char* s, const string& login, const string& senha) {
+    sqlite3* DB;
+    int exit = sqlite3_open(s, &DB);
+    string sql;
+
+    // Consulta na tabela 'user'
+    sql = "SELECT COUNT(*) FROM user WHERE login = '" + login + "' AND senha = '" + senha + "'";
+    int countUser = 0;
+    exit = sqlite3_exec(DB, sql.c_str(), callbackCheckNome, &countUser, nullptr);
+    if (exit != SQLITE_OK) {
+        cerr << "Erro na consulta da tabela 'user'." << endl;
+        sqlite3_close(DB);
+        return INVALIDO;
+    }
+
+    // Consulta na tabela 'prest'
+    sql = "SELECT COUNT(*) FROM prest WHERE login = '" + login + "' AND senha = '" + senha + "'";
+    int countPrest = 0;
+    exit = sqlite3_exec(DB, sql.c_str(), callbackCheckNome, &countPrest, nullptr);
+    if (exit != SQLITE_OK) {
+        cerr << "Erro na consulta da tabela 'prest'." << endl;
+        sqlite3_close(DB);
+        return INVALIDO;
+    }
+
+    sqlite3_close(DB);
+
+    // Verifica se há registros correspondentes nas tabelas 'user' ou 'prest'
+    if (countUser > 0) {
+        return USER;  // Credenciais válidas como 'user'
+    }
+    else if (countPrest > 0) {
+        return PREST;  // Credenciais válidas como 'prestador'
+    }
+    else {
+        return INVALIDO; // Credenciais inválidas
+    }
+}
+
+int getUserID(const char* s, const string& table , const string& login, const string& senha) {
+    sqlite3* DB;
+    int exit = sqlite3_open(s, &DB);
+    string sql = "SELECT id FROM "+ table +" WHERE login = '" + login + "' AND senha = '" + senha + "'";
+    int id = 0;
+    exit = sqlite3_exec(DB, sql.c_str(), callbackGetID, &id, nullptr);
+    sqlite3_close(DB);
+    return id;
+}
+
+int callbackGetID(void* data, int argc, char** argv, char** azColName) {
+    int* id = static_cast<int*>(data);
+    *id = atoi(argv[0]);
+    return 0;
+}
+
+int callbackCheckNome(void* data, int argc, char** argv, char** azColName) {
+    int* count = static_cast<int*>(data);
+    *count = atoi(argv[0]);
     return 0;
 }
 
@@ -140,8 +309,27 @@ int selectData(const char* s)
 {
     sqlite3* DB;
     char* messageError;
-
     string sql = "SELECT * FROM user;";
+
+    int exit = sqlite3_open(s, &DB);
+    /* An open database, SQL to be evaluated, Callback function, 1st argument to callback, Error msg written here*/
+    exit = sqlite3_exec(DB, sql.c_str(), callback, NULL, &messageError);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Error in selectData function." << endl;
+        sqlite3_free(messageError);
+    }
+    else
+        cout << "Records selected Successfully!" << endl;
+
+    return 0;
+}
+
+int selectPrest(const char* s)
+{
+    sqlite3* DB;
+    char* messageError;
+    string sql = "SELECT * FROM prest;";
 
     int exit = sqlite3_open(s, &DB);
     /* An open database, SQL to be evaluated, Callback function, 1st argument to callback, Error msg written here*/
@@ -216,102 +404,75 @@ int callback(void* NotUsed, int argc, char** argv, char** azColName)
     WSACleanup();
 
     return 0;
-}
+}*/
 
-void iniciaServer() {
+/*void iniciaServer() {
     string serverCommand = "start cmd /k node server.js";
     system(serverCommand.c_str());
     // Aguardar alguns segundos para o servidor iniciar completamente
     Sleep(2000);
-}
-*/
+}*/
+
 void cadastroUser(Usuario& user, Prestador& prest) {
     string cinNome;
-    string cinLogin = "teste";
+    string cinLogin;
+    string cinSenha;
     const char* dir = "C:\\prest\\prest.db";//onde vai ser salvo DB
 
     system("cls"); // Limpa a tela;
     cout << "*****CADASTRO USUARIO*****" << endl;
     cout << "Nome para cadastro: ";
     cin >> cinNome;
-    for (int i = 0; i < 5; i++) {
-        if (cinNome == user.nome[i]) {
-            while (cinNome == user.nome[i]) {
-                cout << "Usuário já existe\n";
-                cout << "Nome para cadastro:";
-                cin >> cinNome;
-            }
+    
+    bool nomeExistente = true;
+    while (nomeExistente) {
+        cout << "Escreva um nome de usuário: ";
+        cin >> cinLogin;
+        // Verificar se o nome de usuário já existe
+        if (verificaNome(dir, cinLogin.c_str(), "user")) {
+            cout << "O nome de usuário já existe. Por favor, escolha outro nome." << endl;
         }
         else {
-            user.nome[user.cont] = cinNome;
-            insertData(dir, cinNome.c_str(), cinLogin.c_str(), "senha", "cidade", "bairro", "servico");
-            break;
+            nomeExistente = false;
         }
     }
-    cout << "escreva um nome de usuario: ";
-    cin >> cinLogin;
-    for (int i = 0; i < 5; i++) {
-        if (cinLogin == user.login[i] || cinLogin == prest.login[i]) {
-            while (cinLogin == user.login[i] || cinLogin == prest.login[i]) {
-                cout << "Nome de Usuario já existe\n";
-                cout << "Nome para cadastro:";
-                cin >> cinLogin;
-            }
-        }
-        else {
-            user.login[user.cont] = cinLogin;
-            break;
-        }
-    }
+    
     cout << "Senha: ";
-    cin >> user.senha[user.cont];
+    cin >> cinSenha;
 
-    user.id[user.cont] = user.cont;
-    user.cont++;
+    insertData(dir, cinNome.c_str(), cinLogin.c_str(), cinSenha.c_str(), "Nulo", "Nulo", "Nulo");
 
     system("cls"); // Limpa a tela
 };
 
 void cadastroPrestador(Prestador& prest, Usuario& user) {
-
     string cinNome;
     int opc;
     string cinLogin;
+    string funcao;
+    string cidade;
+    string senha;
     bool loop = true;
+    const char* dir = "C:\\prest\\prest.db";//onde vai ser salvo DB
 
     system("cls"); // Limpa a tela
     cout << "*****CADASTRO PRESTADOR DE SERVICO*****" << endl;
     cout << "Nome para cadastro: ";
     cin >> cinNome;
-    for (int i = 0; i < 5; i++) {
-        if (cinNome == prest.nome[i]) {
-            while (cinNome == prest.nome[i]) {
-                cout << "Usuário já existe" << endl;
-                cout << "Nome para cadastro: " << endl;
-                cin >> cinNome;
-            }
+   
+    bool nomeExistente = true;
+    while (nomeExistente) {
+        cout << "Escreva um nome de usuário: ";
+        cin >> cinLogin;
+        // Verificar se o nome de usuário já existe
+        if (verificaNome(dir, cinLogin.c_str(), "prest")) {
+            cout << "O nome de usuário já existe. Por favor, escolha outro nome." << endl;
         }
         else {
-            prest.nome[prest.cont] = cinNome;
-            break;
+            nomeExistente = false;
         }
     }
-    cout << "Escreva um nome de usuario: ";
-    cin >> cinLogin;
-    for (int i = 0; i < 5; i++) {
-        if (cinLogin == prest.login[i] || cinLogin == user.login[i]) {
-            while (cinLogin == prest.login[i] || cinLogin ==
-                user.login[i]) {
-                cout << "Nome de Usuario já existe" << endl;
-                cout << "Nome para cadastro:";
-                cin >> cinLogin;
-            }
-        }
-        else {
-            prest.login[prest.cont] = cinLogin;
-            break;
-        }
-    }
+
     while (loop) {
         cout << "Qual a sua função:\n";
         cout << "1-Eletricista\n"
@@ -320,15 +481,15 @@ void cadastroPrestador(Prestador& prest, Usuario& user) {
         cin >> opc;
         switch (opc) {
         case 1:
-            prest.funcao[prest.cont] = "Eletricista";
+            funcao = "Eletricista";
             loop = false;
             break;
         case 2:
-            prest.funcao[prest.cont] = "Mecânico";
+            funcao = "Mecânico";
             loop = false;
             break;
         case 3:
-            prest.funcao[prest.cont] = "Encanador";
+            funcao = "Encanador";
             loop = false;
             break;
         default:
@@ -343,22 +504,21 @@ void cadastroPrestador(Prestador& prest, Usuario& user) {
     switch (opc)
     {
     case 1:
-        prest.cidade[prest.cont] = "Porto Alegre";
+        cidade = "Porto Alegre";
         break;
     case 2:
-        prest.cidade[prest.cont] = "Viamão";
+        cidade = "Viamão";
         break;
     case 3:
-        prest.cidade[prest.cont] = "Alvorada";
+        cidade = "Alvorada";
         break;
     default:
         cout << "Comando invalido!";
     }
     cout << "Senha: ";
-    cin >> prest.senha[prest.cont];
-
-    prest.id[prest.cont] = prest.cont;
-    prest.cont++;
+    cin >> senha;
+    insertPrestador(dir, cinNome.c_str(), cinLogin.c_str(), senha.c_str(), cidade.c_str(), "Nulo", funcao.c_str(), "Nulo");
+    
     system("cls"); // Limpa a tela
 };
 
@@ -454,7 +614,8 @@ void CidadeUsuario(Usuario& user, int id) {
 
 string Servico(Usuario& user, Prestador& prest, int id) {
     bool servicoAceito = false;
-    int n1;
+    int n1 = -1; // Inicializa 'n1' com -1
+
     for (int i = 0; i < 5; i++) {
         if (user.funcao[id] == prest.funcao[i] && user.cidade[id] ==
             prest.cidade[i]) {
@@ -468,11 +629,19 @@ string Servico(Usuario& user, Prestador& prest, int id) {
             break;
         }
     }
+
     if (!servicoAceito) {
         cout << "Nenhum prestador encontrado :(" << endl;
     }
-    return prest.nome[n1];
-};
+
+    if (n1 != -1) {
+        return prest.nome[n1];
+    }
+    else {
+        // Trate o caso em que nenhum prestador aceitou o serviço
+        return "Nenhum prestador aceitou o serviço";
+    }
+}
 
 void TelaUser(Usuario& user, Prestador& prest, int id) {
     int opc = 0;
@@ -532,8 +701,7 @@ void TelaUser(Usuario& user, Prestador& prest, int id) {
             }
         }
         else if (opc == 3) {
-            //iniciaServer();
-            //chat(user.nome[id]);
+            
         }
         loop = true;
     }
@@ -543,63 +711,60 @@ void login(Usuario& user, Prestador& prest) {
     string login;
     string senha;
     bool logado = false;
+    int id;
+    const char* dir = "C:\\prest\\prest.db";
     system("cls"); // Limpa a tela
     cout << "Login: ";
     cin >> login;
     cout << "Senha: ";
     cin >> senha;
-    system("cls"); // Limpa a tela
-    for (int i = 0; i < 5; i++) {
-        if (login == user.login[i] && senha == user.senha[i]) {
-
-            logado = true;
-            TelaUser(user, prest, i);
-            break;
+   // system("cls"); // Limpa a tela
+    TipoLogin tipo = verificarCredenciais(dir, login, senha);
+    
+    if (tipo == USER) {
+        cout << "********TELA DO USUARIO********" << endl;
+        id = getUserID(dir, "user", login, senha);
+        if (id != 0) { // Verifica se o ID é válido
+            cout << id << endl;
+            TelaUser(user, prest, 1);
         }
-        else if (login == prest.login[i] && senha == prest.login[i]) {
-
-            logado = true;
-            TelaTrabalhador(prest, i);
-            break;
-        };
-    };
-    if (!logado) {
-        cout << "Usuario ou senha incorreto!!!\n";
+        else {
+            cout << "Erro ao obter o ID do usuário." << endl;
+        }
     }
-};
-
-void ListarUser(Usuario& user) {
-    for (int i = 0; i < 5; i++) {
-        cout << i + 1 << "-nome: " << user.nome[i] << endl;
-        cout << i + 1 << "-senha: " << user.senha[i] << endl;
-        cout << i + 1 << "-ID : " << user.id[i] << endl;
-        cout << i + 1 << "-login: " << user.login[i] << endl;
-        cout << "-----------------------" << endl;
+    else if (tipo == PREST) {
+        cout << "********TELA DO TRABALHADOR********" << endl;
+        id = getUserID(dir, "prest", login, senha);
+        if (id != 0) { // Verifica se o ID é válido
+            cout << id << endl;
+            TelaTrabalhador(prest, 1);
+        }
+        else {
+            cout << "Erro ao obter o ID do trabalhador." << endl;
+        }
     }
-};
-
-void ListarPrest(Prestador& prest) {
-    for (int i = 0; i < 5; i++) {
-        cout << i + 1 << "-nome: " << prest.nome[i] << endl;
-        cout << i + 1 << "-senha: " << prest.senha[i] << endl;
-        cout << i + 1 << "-função: " << prest.funcao[i] << endl;
-        cout << i + 1 << "-ID =: " << prest.id[i] << endl;
-        cout << i + 1 << "-login: " << prest.login[i] << endl;
-        cout << "-----------------------" << endl;
+    else {
+        cout << "Usuário ou senha incorretos!" << endl;
     }
+            
 };
 
 void App::start() { // em c++ precisar construir o metod fora da classe
+    SetConsoleOutputCP(CP_UTF8);
+    
     Usuario user;
     Prestador prest;
     int opcao = 0;
     int opcaoUser = 0;
+
+    
 
     const char* dir = "C:\\prest\\prest.db";//onde vai ser salvo DB
     sqlite3* DB;// ponteiro usado para compartilhar o mesmo objeto sqlite3(DB)
 
     createDb(dir);
     createTable(dir);
+    createTablePrestador(dir);
 
     while (opcao != 8) {
         cout << "******** Bem Vindo A Tela De Inicio ********\n"
@@ -607,7 +772,7 @@ void App::start() { // em c++ precisar construir o metod fora da classe
             << "2-Login:\n"
             << "3-Listar Usuario:\n"
             << "4-Listar Prestador:\n"
-            << "5-Banco de dados:\n"
+            << "5-Chat:\n"
             << "6-Delete user:\n"
             << "7-Edita user:\n"
             << "8-Sair:\n";
@@ -631,13 +796,16 @@ void App::start() { // em c++ precisar construir o metod fora da classe
             login(user, prest);
             break;
         case 3:
-            ListarUser(user);
+
+            selectData(dir);
             break;
         case 4:
-            ListarPrest(prest);
+            cout << "*********PRESTADORES*********";
+            selectPrest(dir);
             break;
         case 5:
-            selectData(dir);
+           // iniciaServer();
+           // chat("Nicolas");
             break;
         case 6:
             deleteData(dir);
