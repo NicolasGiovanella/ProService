@@ -1,4 +1,4 @@
-﻿#include "usuario.h"
+#include "usuario.h"
 
 class App
 {
