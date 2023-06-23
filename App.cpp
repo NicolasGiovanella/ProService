@@ -357,62 +357,6 @@ int callback(void* NotUsed, int argc, char** argv, char** azColName)
     return 0;
 }
 
-/*int chat(const std::string& clientName) {
-    WSADATA wsaData;
-    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-        std::cerr << "Falha ao inicializar o Winsock" << std::endl;
-        return 1;
-    }
-
-    SOCKET clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientSocket == INVALID_SOCKET) {
-        std::cerr << "Falha ao criar o socket" << std::endl;
-        WSACleanup();
-        return 1;
-    }
-
-    sockaddr_in serverAddress;
-    serverAddress.sin_family = AF_INET;
-    serverAddress.sin_port = htons(3000); // Porta do servidor de chat
-    serverAddress.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-    if (connect(clientSocket, reinterpret_cast<sockaddr*>(&serverAddress), sizeof(serverAddress)) == SOCKET_ERROR) {
-        std::cerr << "Falha na conexão com o servidor" << std::endl;
-        closesocket(clientSocket);
-        WSACleanup();
-        return 1;
-    }
-
-    std::string message;
-
-    while (true) {
-        cout << "Digite uma mensagem: ";
-        std::getline(std::cin, message);
-
-        // Adiciona o nome do cliente à mensagem
-        std::string fullMessage = clientName + ": " + message;
-
-        // Enviar a mensagem para o servidor
-        send(clientSocket, fullMessage.c_str(), fullMessage.size() + 1, 0);
-
-        if (message == "exit") {
-            break;
-        }
-    }
-
-    closesocket(clientSocket);
-    WSACleanup();
-
-    return 0;
-}*/
-
-/*void iniciaServer() {
-    string serverCommand = "start cmd /k node server.js";
-    system(serverCommand.c_str());
-    // Aguardar alguns segundos para o servidor iniciar completamente
-    Sleep(2000);
-}*/
-
 void cadastroUser(Usuario& user, Prestador& prest) {
     string cinNome;
     string cinLogin;
@@ -767,15 +711,18 @@ void App::start() { // em c++ precisar construir o metod fora da classe
     createTablePrestador(dir);
 
     while (opcao != 8) {
-        cout << "******** Bem Vindo A Tela De Inicio ********\n"
-            << "1-Cadastro:\n"
-            << "2-Login:\n"
-            << "3-Listar Usuario:\n"
-            << "4-Listar Prestador:\n"
-            << "5-Chat:\n"
-            << "6-Delete user:\n"
-            << "7-Edita user:\n"
-            << "8-Sair:\n";
+        cout <<"+--------------------------------------------+\n";
+        cout <<"|******** Bem Vindo A Tela De Inicio ********|\n"
+            << "+--------------------------------------------+\n"
+            << "|1-Cadastro:                                 |\n"
+            << "|2-Login:                                    |\n"
+            << "|3-Listar Usuario:                           |\n"
+            << "|4-Listar Prestador:                         |\n"
+            << "|5-Chat:                                     |\n"
+            << "|6-Delete user:                              |\n"
+            << "|7-Edita user:                               |\n"
+            << "|8-Sair:                                     |\n"
+            << "+--------------------------------------------+\n";
         cin >> opcao;
         switch (opcao) {
         case 1:
