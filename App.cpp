@@ -10,6 +10,7 @@ int callbackCheckNome(void* data, int argc, char** argv, char** azColName);
 int callback(void* NotUsed, int argc, char** argv, char** azColName);
 int callbackGetID(void* data, int argc, char** argv, char** azColName);
 
+//cria bancdo de dados
 int createDb(const char* s) {
     sqlite3* DB;
     int exit = 0;
@@ -20,7 +21,7 @@ int createDb(const char* s) {
 
     return 0;
 }
-
+//criar tabela tabela user
 int createTable(const char* s) {
     sqlite3* DB;
 
@@ -56,7 +57,7 @@ int createTable(const char* s) {
 
     return 0;
 }
-
+//cria tabela prestador
 int createTablePrestador(const char* s) {
     sqlite3* DB;
 
@@ -93,7 +94,91 @@ int createTablePrestador(const char* s) {
 
     return 0;
 }
+//cria tabela serviço
+int createTableServico(const char* s) {
+    sqlite3* DB;
 
+    string sql = "CREATE TABLE IF NOT EXISTS servico("
+        "ID INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "idUser   INTEGER NULL,"
+        "idPrest  INTEGER NOT NULL,"
+        "descricao  TEXT NOT NULL,"
+        "cidade TEXT NOT NULL,"
+        "tipoServico  TEXT NOT NULL);";
+
+    try {
+        int exit = 0;
+        exit = sqlite3_open(s, &DB);
+
+        char* messaggeError;
+        exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messaggeError);
+
+        if (exit != SQLITE_OK) {
+            cerr << "ERROR CREATE TABLE" << endl;
+            sqlite3_free(messaggeError);
+        }
+        else {
+            cout << "TABLE CREATE SUCCESSFULLY" << endl;
+            sqlite3_close(DB);
+        }
+
+    }
+    catch (const exception& e) {
+        cerr << e.what();
+    }
+
+    return 0;
+}
+//inseri dados a tabela servico
+int insertServico(const char* s, int idUser, int idPrest, const char* descricao, const char* cidade, const char* servico) {
+    sqlite3* DB;
+    char* messaggeError;
+    bool teste = true;
+    int exit = sqlite3_open(s, &DB);
+
+
+    string sql = "INSERT INTO servico (idUser, idPrest, descricao, cidade ,tipoServico) VALUES ('" +
+        to_string(idUser) + "', '" +
+        to_string(idPrest) + "', '" +
+        string(descricao) + "', '" +
+        string(cidade) + "', '" +
+        string(servico) + "');";
+
+
+    exit = sqlite3_exec(DB, sql.c_str(), NULL, 0, &messaggeError);
+
+    if (exit != SQLITE_OK) {
+        cerr << "ERROR INSERT: " << messaggeError << endl;
+        sqlite3_free(messaggeError);
+    }
+    else {
+        cout << "INSERT SUCCESSFULLY" << endl;
+        sqlite3_close(DB);
+    }
+
+    return 0;
+}
+//imprimi serviço
+int selectServico(const char* s)
+{
+    sqlite3* DB;
+    char* messageError;
+    string sql = "SELECT * FROM servico;";
+
+    int exit = sqlite3_open(s, &DB);
+    /* An open database, SQL to be evaluated, Callback function, 1st argument to callback, Error msg written here*/
+    exit = sqlite3_exec(DB, sql.c_str(), callback, NULL, &messageError);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Error in selectData function." << endl;
+        sqlite3_free(messageError);
+    }
+    else
+        cout << "Records selected Successfully!" << endl;
+
+    return 0;
+}
+//insere dados a tabela user
 int insertData(const char* s,const char* nome, const char* login, const char* senha, const char* cidade, const char* bairro, const char* servico) {
     sqlite3* DB;
     char* messaggeError;
@@ -123,7 +208,7 @@ int insertData(const char* s,const char* nome, const char* login, const char* se
 
     return 0;
 }
-
+//insere dados a tabela prestador
 int insertPrestador(const char* s, const char* nome, const char* login, const char* senha, const char* cidade, const char* bairro, const char* funcao,const char* servico) {
     sqlite3* DB;
     char* messaggeError;
@@ -240,18 +325,74 @@ int getUserID(const char* s, const string& table , const string& login, const st
     return id;
 }
 
-int callbackGetID(void* data, int argc, char** argv, char** azColName) {
-    int* id = static_cast<int*>(data);
-    *id = atoi(argv[0]);
-    return 0;
+int getPrestadorID(const char* s, const string& cidade, const string& bairro, const string& funcao) {
+    sqlite3* DB;
+    int exit = sqlite3_open(s, &DB);
+    string sql = "SELECT id FROM prest WHERE cidade = '" + cidade + "' AND bairro = '" + bairro + "' AND funcao = '" + funcao + "'";
+    int id = 0;
+    exit = sqlite3_exec(DB, sql.c_str(), callbackGetID, &id, nullptr);
+    sqlite3_close(DB);
+    return id;
+}
+//função struct 
+struct InformacoesPrestador {
+    string nome;
+    string funcao;
+    string cidade;
+    string bairro;
+};
+
+InformacoesPrestador obterInformacoesPrestador(const char* s, int id) {
+    InformacoesPrestador informacoes;
+
+    sqlite3* DB;
+    string sql = "SELECT nome, funcao, cidade, bairro FROM prest WHERE ID = " + to_string(id) + ";";
+
+    try {
+        int exit = sqlite3_open(s, &DB);
+
+        if (exit != SQLITE_OK) {
+            cerr << "ERROR OPENING DATABASE" << endl;
+            return informacoes;
+        }
+
+        sqlite3_stmt* stmt;
+        exit = sqlite3_prepare_v2(DB, sql.c_str(), -1, &stmt, nullptr);
+
+        if (exit != SQLITE_OK) {
+            cerr << "ERROR PREPARING STATEMENT" << endl;
+            sqlite3_close(DB);
+            return informacoes;
+        }
+
+        exit = sqlite3_step(stmt);
+
+        if (exit == SQLITE_ROW) {
+            const unsigned char* nome = sqlite3_column_text(stmt, 0);
+            const unsigned char* funcao = sqlite3_column_text(stmt, 1);
+            const unsigned char* cidade = sqlite3_column_text(stmt, 2);
+            const unsigned char* bairro = sqlite3_column_text(stmt, 3);
+
+            informacoes.nome = reinterpret_cast<const char*>(nome);
+            informacoes.funcao = reinterpret_cast<const char*>(funcao);
+            informacoes.cidade = reinterpret_cast<const char*>(cidade);
+            informacoes.bairro = reinterpret_cast<const char*>(bairro);
+        }
+        else {
+            cerr << "PRESTADOR NOT FOUND" << endl;
+        }
+
+        sqlite3_finalize(stmt);
+        sqlite3_close(DB);
+    }
+    catch (const exception& e) {
+        cerr << e.what() << endl;
+    }
+
+    return informacoes;
 }
 
-int callbackCheckNome(void* data, int argc, char** argv, char** azColName) {
-    int* count = static_cast<int*>(data);
-    *count = atoi(argv[0]);
-    return 0;
-}
-
+//deleta dados do banco
 int deleteData(const char* s)
 {
     sqlite3* DB;
@@ -276,7 +417,7 @@ int deleteData(const char* s)
 
     return 0;
 }
-
+//editar dados do banco
 int updateData(const char* s)
 {
     sqlite3* DB;
@@ -304,7 +445,7 @@ int updateData(const char* s)
 
     return 0;
 }
-
+//imprimir * do banco user
 int selectData(const char* s)
 {
     sqlite3* DB;
@@ -324,7 +465,7 @@ int selectData(const char* s)
 
     return 0;
 }
-
+//imprimir * do banco prest
 int selectPrest(const char* s)
 {
     sqlite3* DB;
@@ -344,7 +485,19 @@ int selectPrest(const char* s)
 
     return 0;
 }
-
+//callback para buscar id
+int callbackGetID(void* data, int argc, char** argv, char** azColName) {
+    int* id = static_cast<int*>(data);
+    *id = atoi(argv[0]);
+    return 0;
+}
+//callback para chamar nome
+int callbackCheckNome(void* data, int argc, char** argv, char** azColName) {
+    int* count = static_cast<int*>(data);
+    *count = atoi(argv[0]);
+    return 0;
+}
+//calback para imprimir *
 int callback(void* NotUsed, int argc, char** argv, char** azColName)
 {
     for (int i = 0; i < argc; i++) {
@@ -356,6 +509,222 @@ int callback(void* NotUsed, int argc, char** argv, char** azColName)
 
     return 0;
 }
+
+// Função para verificar se um valor existe no banco de dados SQLite e imprimir os registros correspondentes
+/*int verificarValorExistente(const char* s, int idUser) {
+    sqlite3* DB;
+    //int rc;
+    int exit = sqlite3_open(s, &DB);
+    // Abre a conexão com o banco de dados
+   // rc = sqlite3_open("caminho_para_o_banco_de_dados.db", &DB);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Não foi possível abrir o banco de dados: " << sqlite3_errmsg(DB) << endl;
+        return 0;
+    }
+
+    sqlite3_stmt* stmt;
+    string query = "SELECT * FROM servico WHERE idUser = " + to_string(idUser) + ";";
+
+    // Prepara a consulta SQL
+    exit = sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Erro ao preparar a consulta: " << sqlite3_errmsg(DB) << endl;
+        sqlite3_close(DB);
+        return 0;
+    }
+
+    // Vincula o valor do parâmetro
+    sqlite3_bind_int(stmt, 1, idUser);
+
+    // Executa a consulta
+    while ((exit = sqlite3_step(stmt)) == SQLITE_ROW) {
+        // Imprime os valores dos campos correspondentes
+        int id = sqlite3_column_int(stmt, 0);
+        int userId = sqlite3_column_int(stmt, 1);
+        int prestId = sqlite3_column_int(stmt, 2);
+        const unsigned char* descricao = sqlite3_column_text(stmt, 3);
+        const unsigned char* cidade = sqlite3_column_text(stmt, 4);
+        const unsigned char* tipoServico = sqlite3_column_text(stmt, 5);
+
+        cout << "Registro encontrado:" <<endl;
+        cout << "ID: " << id << endl;
+        cout << "idUser: " << userId << endl;
+        cout << "idPrest: " << prestId << endl;
+        cout << "descricao: " << descricao << endl;
+        cout << "cidade: " << cidade << endl;
+        cout << "tipoServico: " << tipoServico << endl;
+        cout << endl;
+        sqlite3_finalize(stmt);
+        sqlite3_close(DB);
+        return 1;
+    }
+
+    if (exit != SQLITE_DONE) {
+        // Erro ao executar a consulta
+        cerr << "Erro ao executar a consulta: " << sqlite3_errmsg(DB) << endl;
+        return 0;
+    }
+
+    // Libera os recursos
+    sqlite3_finalize(stmt);
+    sqlite3_close(DB);
+}*/
+/*void selectServicoPorIdUser(const char* s, int idUser) {
+    sqlite3* DB;
+    int exit = sqlite3_open(s, &DB);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Não foi possível abrir o banco de dados: " << sqlite3_errmsg(DB) << endl;
+        return;
+    }
+
+    sqlite3_stmt* stmt;
+    string query = "SELECT * FROM servico WHERE idUser = "+to_string(idUser)+";";
+
+    exit = sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr);
+    if (exit != SQLITE_OK) {
+        cerr << "Erro ao preparar a consulta: " << sqlite3_errmsg(DB) << endl;
+        sqlite3_close(DB);
+        return;
+    }
+
+    sqlite3_bind_int(stmt, 1, idUser);
+
+    while ((exit = sqlite3_step(stmt)) == SQLITE_ROW) {
+        int id = sqlite3_column_int(stmt, 0);
+        int userId = sqlite3_column_int(stmt, 1);
+        int prestId = sqlite3_column_int(stmt, 2);
+        const unsigned char* descricao = sqlite3_column_text(stmt, 3);
+        const unsigned char* cidade = sqlite3_column_text(stmt, 4);
+        const unsigned char* tipoServico = sqlite3_column_text(stmt, 5);
+
+        cout << "Registro encontrado:" << endl;
+        cout << "ID: " << id << endl;
+        //cout << "idUser: " << userId << endl;
+       // cout << "idPrest: " << prestId << endl;
+        cout << "descricao: " << descricao << endl;
+        cout << "cidade: " << cidade << endl;
+        cout << "tipoServico: " << tipoServico << endl;
+        cout << endl;
+    }
+
+    if (exit != SQLITE_DONE) {
+        cerr << "Erro ao executar a consulta: " << sqlite3_errmsg(DB) << endl;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(DB);
+}*/
+void selectServicoPorIdUser(const char* s,  int idUser) {
+    sqlite3* DB;
+    int exit = sqlite3_open(s, &DB);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Não foi possível abrir o banco de dados: " << sqlite3_errmsg(DB) << endl;
+        return;
+    }
+
+    sqlite3_stmt* stmt;
+    string query = "SELECT * FROM servico WHERE idUser = " + to_string(idUser) + "; ";
+
+    exit = sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr);
+    if (exit != SQLITE_OK) {
+        cerr << "Erro ao preparar a consulta: " << sqlite3_errmsg(DB) << endl;
+        sqlite3_close(DB);
+        return;
+    }
+
+    bool found = false; // Variável para rastrear se algum item foi encontrado
+
+    while ((exit = sqlite3_step(stmt)) == SQLITE_ROW) {
+        found = true;
+
+        int id = sqlite3_column_int(stmt, 0);
+        int userId = sqlite3_column_int(stmt, 1);
+        int prestId = sqlite3_column_int(stmt, 2);
+        const unsigned char* descricao = sqlite3_column_text(stmt, 3);
+        const unsigned char* cidade = sqlite3_column_text(stmt, 4);
+        const unsigned char* tipoServico = sqlite3_column_text(stmt, 5);
+
+        cout << "Registro encontrado:" << endl;
+        cout << "ID: " << id << endl;
+        // cout << "idUser: " << userId << endl;
+        // cout << "idPrest: " << prestId << endl;
+        cout << "descricao: " << descricao << endl;
+        cout << "cidade: " << cidade << endl;
+        cout << "tipoServico: " << tipoServico << endl;
+        cout << endl;
+    }
+
+    if (exit != SQLITE_DONE) {
+        cerr << "Erro ao executar a consulta: " << sqlite3_errmsg(DB) << endl;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(DB);
+
+    if (!found) {
+        cout << "Nenhum item encontrado o Usúario " << endl;
+    }
+}
+
+void selectServicoPorIdPrest(const char* s,  int idPrest) {
+    sqlite3* DB;
+    int exit = sqlite3_open(s, &DB);
+
+    if (exit != SQLITE_OK) {
+        cerr << "Não foi possível abrir o banco de dados: " << sqlite3_errmsg(DB) << endl;
+        return;
+    }
+
+    sqlite3_stmt* stmt;
+    string query = "SELECT * FROM servico WHERE idPrest = " + to_string(idPrest) + "; ";
+
+    exit = sqlite3_prepare_v2(DB, query.c_str(), -1, &stmt, nullptr);
+    if (exit != SQLITE_OK) {
+        cerr << "Erro ao preparar a consulta: " << sqlite3_errmsg(DB) << endl;
+        sqlite3_close(DB);
+        return;
+    }
+
+    bool found = false; // Variável para rastrear se algum item foi encontrado
+
+    while ((exit = sqlite3_step(stmt)) == SQLITE_ROW) {
+        found = true;
+
+        int id = sqlite3_column_int(stmt, 0);
+        int userId = sqlite3_column_int(stmt, 1);
+        int prestId = sqlite3_column_int(stmt, 2);
+        const unsigned char* descricao = sqlite3_column_text(stmt, 3);
+        const unsigned char* cidade = sqlite3_column_text(stmt, 4);
+        const unsigned char* tipoServico = sqlite3_column_text(stmt, 5);
+
+        cout << "Registro encontrado:" << endl;
+        cout << "ID: " << id << endl;
+        // cout << "idUser: " << userId << endl;
+        // cout << "idPrest: " << prestId << endl;
+        cout << "descricao: " << descricao << endl;
+        cout << "cidade: " << cidade << endl;
+        cout << "tipoServico: " << tipoServico << endl;
+        cout << endl;
+    }
+
+    if (exit != SQLITE_DONE) {
+        cerr << "Erro ao executar a consulta: " << sqlite3_errmsg(DB) << endl;
+    }
+
+    sqlite3_finalize(stmt);
+    sqlite3_close(DB);
+
+    if (!found) {
+        cout << "Nenhum item encontrado o Usúario " << endl;
+    }
+}
+
+
+/*-------------funçoes-------------*/
 
 void cadastroUser(Usuario& user, Prestador& prest) {
     string cinNome;
@@ -395,6 +764,7 @@ void cadastroPrestador(Prestador& prest, Usuario& user) {
     string cinLogin;
     string funcao;
     string cidade;
+    string bairro;
     string senha;
     bool loop = true;
     const char* dir = "C:\\prest\\prest.db";//onde vai ser salvo DB
@@ -440,184 +810,219 @@ void cadastroPrestador(Prestador& prest, Usuario& user) {
             cout << "Função invalida" << endl;
         }
     }
-    cout << "Qual sua Cidade:" << endl;
-    cout << "1-Porto Alegre" << endl;
-    cout << "2-Viamão" << endl;
-    cout << "3-Alvorada" << endl;
-    cin >> opc;
-    switch (opc)
-    {
-    case 1:
-        cidade = "Porto Alegre";
-        break;
-    case 2:
-        cidade = "Viamão";
-        break;
-    case 3:
-        cidade = "Alvorada";
-        break;
-    default:
-        cout << "Comando invalido!";
-    }
-    cout << "Senha: ";
-    cin >> senha;
-    insertPrestador(dir, cinNome.c_str(), cinLogin.c_str(), senha.c_str(), cidade.c_str(), "Nulo", funcao.c_str(), "Nulo");
-    
-    system("cls"); // Limpa a tela
-};
-
-void TelaTrabalhador(Prestador& prest, int id) {
-    int opc = 0;
-    while (opc != 5) {
-        cout << "Nome: " << prest.nome[id] << endl;
-        cout << "Função: " << prest.funcao[id] << endl;
-        cout << "Sua cidade : " << prest.cidade[id] << endl;
-        cout << "\n=== Lista de Serviços ===" << endl;
-        if (!prest.solicitante[id].empty()) {
-            cout << "Solicitante: " << prest.solicitante[id] << endl;
-            cout << "serviço: " << prest.funcao[id] << endl;
-            cout << "Descrição do serviço: \n" << prest.texto[id] << endl;
-        }
-        else {
-            cout << "Sem serviços solicitados :(" << endl;
-        }
-        cout << "\n=========================" << std::endl;
-        cout << "5-Voltar\n";
-        cin >> opc;
-    }
-};
-
-void CidadeUsuario(Usuario& user, int id) {
-    int opc[4];
-    while (opc[0] != 1 && opc[0] != 2 && opc[0] != 3) {
+ 
+    int opcCidade[4];
+    while (opcCidade[0] != 1 && opcCidade[0] != 2 && opcCidade[0] != 3) {
         cout << "Qual a sua região:\n";
         cout << "1 - Porto Alegre\n"
             << "2 - Viamão\n"
             << "3 - Alvorada\n";
-        cin >> opc[0];
+        cin >> opcCidade[0];
     }
 
-    switch (opc[0]) {
+    switch (opcCidade[0]) {
     case 1:
-        user.cidade[id] = "Porto Alegre";
-        while (opc[1] != 1 && opc[1] != 2 && opc[1] != 3) {
+        cidade = "Porto Alegre";
+        while (opcCidade[1] != 1 && opcCidade[1] != 2 && opcCidade[1] != 3) {
             cout << "Qual a seu bairro:\n"
                 << "1 - Moinhos de vento\n"
                 << "2 - auxiliadora\n"
                 << "3 - cidade baixa\n";
-            cin >> opc[1];
+            cin >> opcCidade[1];
         }
-        switch (opc[1])
+        switch (opcCidade[1])
         {
-        case 1: user.bairro[id] = "Moinhos de Vento";
+        case 1: bairro = "Moinhos de Vento";
             break;
-        case 2: user.bairro[id] = "Auxiliadora";
+        case 2: bairro = "Auxiliadora";
             break;
-        case 3: user.bairro[id] = "Cidade Baixa";
+        case 3: bairro = "Cidade Baixa";
             break;
         }
         break;
     case 2:
-        user.cidade[id] = "Viamão";
-        while (opc[2] != 1 && opc[2] != 2 && opc[2] != 3) {
+        cidade = "Viamão";
+        while (opcCidade[2] != 1 && opcCidade[2] != 2 && opcCidade[2] != 3) {
             cout << "Qual a seu bairro:\n"
                 << "1 - Planalto\n"
                 << "2 - Santa Isabel\n"
                 << "3 - Monte Alegre\n";
-            cin >> opc[2];
+            cin >> opcCidade[2];
         }
-        switch (opc[2]) {
-        case 1: user.bairro[id] = "Planalto";
+        switch (opcCidade[2]) {
+        case 1: bairro = "Planalto";
             break;
-        case 2: user.bairro[id] = "Santa Isabel";
+        case 2: bairro = "Santa Isabel";
             break;
-        case 3: user.bairro[id] = "Monte Alegre";
+        case 3: bairro = "Monte Alegre";
         }
         break;
     case 3:
-        user.cidade[id] = "Alvorada";
-        while (opc[3] != 1 && opc[3] != 2 && opc[3] != 3) {
+        cidade = "Alvorada";
+        while (opcCidade[3] != 1 && opcCidade[3] != 2 && opcCidade[3] != 3) {
             cout << "Qual a seu bairro:\n"
                 << "1 - Jardim Aparecida\n"
                 << "2 - Salome\n"
                 << "3 - Bela Vista\n";
-            cin >> opc[3];
+            cin >> opcCidade[3];
         }
-        switch (opc[3]) {
-        case 1: user.bairro[id] = "Jardim Aparecida";
+        switch (opcCidade[3]) {
+        case 1: bairro = "Jardim Aparecida";
             break;
-        case 2: user.bairro[id] = "Salome";
+        case 2: bairro = "Salome";
             break;
-        case 3: user.bairro[id] = "Bela Vista";
+        case 3: bairro = "Bela Vista";
 
         }
         break;
 
     };
+    cout << "Senha: ";
+    cin >> senha;
+    insertPrestador(dir, cinNome.c_str(), cinLogin.c_str(), senha.c_str(), cidade.c_str(), bairro.c_str(), funcao.c_str(), "Nulo");
+    
+    system("cls"); // Limpa a tela
 };
 
-string Servico(Usuario& user, Prestador& prest, int id) {
+void TelaTrabalhador(int idPrest, const InformacoesPrestador& informacoes) {
+    int opc = 0;
+
+    while (opc != 5) {
+        system("cls"); // Limpa a tela
+        const char* dir = "C:\\prest\\prest.db";
+        cout << idPrest << endl;
+        cout << "+--------------------------------------------+\n";
+        cout << "|          ****TELA DO PRESTADOR****         |\n"
+             << "+--------------------------------------------+\n";
+        cout << "Nome: " << informacoes.nome << endl;
+        cout << "Função: " << informacoes.funcao << endl;
+        cout << "Sua cidade : " << informacoes.cidade << endl;
+        cout << "\n============ Lista de Serviços ============" << endl;
+        selectServicoPorIdPrest(dir, idPrest);
+        cout << "\n===========================================" << endl;
+        cout << "5-Voltar\n";
+        cin >> opc;
+    }
+};
+
+int Servico(string cidade, string bairro, string funcao) {
     bool servicoAceito = false;
-    int n1 = -1; // Inicializa 'n1' com -1
+    const char* dir = "C:\\prest\\prest.db";
+    int id;
 
-    for (int i = 0; i < 5; i++) {
-        if (user.funcao[id] == prest.funcao[i] && user.cidade[id] ==
-            prest.cidade[i]) {
-            servicoAceito = true;
-            user.servico[id] = "serviço";
-            prest.servico[i] = "servico";
-            prest.solicitante[i] = user.nome[id];
-            prest.texto[i] = user.texto[id];
-            cout << "Prestador " << prest.nome[i] << " aceitou seu serviço\n";
-            n1 = i;
-            break;
-        }
-    }
+   id = getPrestadorID(dir, cidade, bairro, funcao);//vai verificar se tem aloguem prestador que atende os requisitos
 
-    if (!servicoAceito) {
-        cout << "Nenhum prestador encontrado :(" << endl;
-    }
-
-    if (n1 != -1) {
-        return prest.nome[n1];
-    }
-    else {
-        // Trate o caso em que nenhum prestador aceitou o serviço
-        return "Nenhum prestador aceitou o serviço";
-    }
+   return id;
 }
 
-void TelaUser(Usuario& user, Prestador& prest, int id) {
+void TelaUser(InformacoesPrestador& informacoes, int idUser) {
+    system("cls"); // Limpa a tela
     int opc = 0;
     int opc2 = 0;
     bool loop = true;
+    const char* dir = "C:\\prest\\prest.db";
+    int IDprestador = -1;
     string prestador;
+    string funcao;
+    string cidade;
+    string bairro;
+    string descricao;
     while (opc != 4) {
-        cout << "1-Solicitar Serviço na sua região" << endl;
-        cout << "2-Serviços solicitados" << endl;
-        cout << "3-chat" << endl;
-        cout << "4-Voltar\n";
+        cout << "+----------------------------------------+\n"
+            << "|            Solicitações                |\n"
+            << "|----------------------------------------|\n"
+            << "|1-Solicitar Serviço na sua região:      |\n"
+            << "|2-Serviços solicitados:                 |\n"
+            << "|3-chat:                                 |\n"
+            << "|4-Voltar                                |\n"
+            << "+----------------------------------------+\n";
         cin >> opc;
 
         if (opc == 1) {
-            CidadeUsuario(user, id);
+            int opc[4];
+            while (opc[0] != 1 && opc[0] != 2 && opc[0] != 3) {
+                cout << "Qual a sua região:\n";
+                cout << "1 - Porto Alegre\n"
+                    << "2 - Viamão\n"
+                    << "3 - Alvorada\n";
+                cin >> opc[0];
+            }
+
+            switch (opc[0]) {
+            case 1:
+                cidade = "Porto Alegre";
+                while (opc[1] != 1 && opc[1] != 2 && opc[1] != 3) {
+                    cout << "Qual a seu bairro:\n"
+                        << "1 - Moinhos de vento\n"
+                        << "2 - auxiliadora\n"
+                        << "3 - cidade baixa\n";
+                    cin >> opc[1];
+                }
+                switch (opc[1])
+                {
+                case 1: bairro = "Moinhos de Vento";
+                    break;
+                case 2: bairro = "Auxiliadora";
+                    break;
+                case 3: bairro = "Cidade Baixa";
+                    break;
+                }
+                break;
+            case 2:
+                cidade = "Viamão";
+                while (opc[2] != 1 && opc[2] != 2 && opc[2] != 3) {
+                    cout << "Qual a seu bairro:\n"
+                        << "1 - Planalto\n"
+                        << "2 - Santa Isabel\n"
+                        << "3 - Monte Alegre\n";
+                    cin >> opc[2];
+                }
+                switch (opc[2]) {
+                case 1: bairro = "Planalto";
+                    break;
+                case 2: bairro = "Santa Isabel";
+                    break;
+                case 3: bairro = "Monte Alegre";
+                }
+                break;
+            case 3:
+                cidade = "Alvorada";
+                while (opc[3] != 1 && opc[3] != 2 && opc[3] != 3) {
+                    cout << "Qual a seu bairro:\n"
+                        << "1 - Jardim Aparecida\n"
+                        << "2 - Salome\n"
+                        << "3 - Bela Vista\n";
+                    cin >> opc[3];
+                }
+                switch (opc[3]) {
+                case 1: bairro = "Jardim Aparecida";
+                    break;
+                case 2: bairro = "Salome";
+                    break;
+                case 3: bairro = "Bela Vista";
+
+                }
+                break;
+
+            };
 
             while (loop) {
+                system("cls"); // Limpa a tela
                 cout << "Qual o serviço que voce quer solicitar?\n";
                 cout << "1-Eletricista\n"
                     << "2-Mecânico\n"
                     << "3-Encanador\n";
                 cin >> opc2;
                 if (opc2 == 1) {
-                    user.funcao[id] = "Eletricista";
+                    funcao = "Eletricista";
                     loop = false;
                 }
                 else if (opc2 == 2) {
-                    user.funcao[id] = "Mecânico";
+                    funcao = "Mecânico";
                     loop = false;
                 }
                 else if (opc2 == 3) {
-                    user.funcao[id] = "Encanador";
+                    funcao = "Encanador";
                     loop = false;
                 }
                 else {
@@ -626,32 +1031,28 @@ void TelaUser(Usuario& user, Prestador& prest, int id) {
             }
             cout << "Escreva uma breve descrição do serviço:\n" << endl;
             cin.ignore();  // Limpa o buffer do teclado
-            getline(cin, user.texto[id]); //permite escreve texto com espaço
+            getline(cin, descricao); //permite escreve texto com espaço
 
-            prestador = Servico(user, prest, id);
-        }
-        else if (opc == 2) {
-            if (!user.servico[id].empty()) {
-                system("cls"); // Limpa a tela
-                cout << "\n=== Lista de Serviços ===" << endl;
-                cout << "Prestador: " << prestador << endl;
-                cout << "serviço: " << user.funcao[id] << endl;
-                cout << "cidade: " << user.cidade[id] << endl;
-                cout << "Descrição do serviço: \n" << user.texto[id] << endl << endl;
+            IDprestador = Servico(cidade, bairro, funcao);
+            informacoes = obterInformacoesPrestador(dir, IDprestador);     
+            if (IDprestador > 0) {
+                insertServico(dir, idUser, IDprestador, descricao.c_str(), cidade.c_str(), funcao.c_str());
             }
             else {
-                system("cls"); // Limpa a tela
-                cout << "Sem serviços solicitados :(" << endl;
+                cout << "Nenhum prestador encontrado no momento" << endl;
             }
+
         }
-        else if (opc == 3) {
-            
+        else if (opc == 2) {
+            cout << "\n=== Lista de Serviços ===" << endl;        
+            selectServicoPorIdUser(dir, idUser);
         }
+
         loop = true;
     }
 }
 
-void login(Usuario& user, Prestador& prest) {
+void login(Usuario& user, Prestador& prest, InformacoesPrestador& informacoes) {
     string login;
     string senha;
     bool logado = false;
@@ -666,22 +1067,22 @@ void login(Usuario& user, Prestador& prest) {
     TipoLogin tipo = verificarCredenciais(dir, login, senha);
     
     if (tipo == USER) {
-        cout << "********TELA DO USUARIO********" << endl;
         id = getUserID(dir, "user", login, senha);
         if (id != 0) { // Verifica se o ID é válido
-            cout << id << endl;
-            TelaUser(user, prest, 1);
+            //cout << id << endl;
+            //obterInformacoesPrestador(dir, id);
+            TelaUser(informacoes, id);
         }
         else {
             cout << "Erro ao obter o ID do usuário." << endl;
         }
     }
     else if (tipo == PREST) {
-        cout << "********TELA DO TRABALHADOR********" << endl;
         id = getUserID(dir, "prest", login, senha);
         if (id != 0) { // Verifica se o ID é válido
-            cout << id << endl;
-            TelaTrabalhador(prest, 1);
+            //cout << id << endl;
+            informacoes = obterInformacoesPrestador(dir, id); // Armazena as informações do prestador
+            TelaTrabalhador(id, informacoes);
         }
         else {
             cout << "Erro ao obter o ID do trabalhador." << endl;
@@ -698,10 +1099,9 @@ void App::start() { // em c++ precisar construir o metod fora da classe
     
     Usuario user;
     Prestador prest;
+    InformacoesPrestador informacoes;
     int opcao = 0;
     int opcaoUser = 0;
-
-    
 
     const char* dir = "C:\\prest\\prest.db";//onde vai ser salvo DB
     sqlite3* DB;// ponteiro usado para compartilhar o mesmo objeto sqlite3(DB)
@@ -709,6 +1109,11 @@ void App::start() { // em c++ precisar construir o metod fora da classe
     createDb(dir);
     createTable(dir);
     createTablePrestador(dir);
+    createTableServico(dir);
+   // selectServico(dir);
+   // insertServico(dir);
+    
+    
 
     while (opcao != 8) {
         cout <<"+--------------------------------------------+\n";
@@ -726,8 +1131,11 @@ void App::start() { // em c++ precisar construir o metod fora da classe
         cin >> opcao;
         switch (opcao) {
         case 1:
-            cout << "1-Usuario\n"
-                << "2-Trabalhador\n";
+            cout << "+---------------+\n"
+                << "|1-Usuario      |\n"
+                << "+ --------------+\n"
+                << "|2-Trabalhador  |\n"
+                << "+---------------+\n";
             cin >> opcaoUser;
             if (opcaoUser == 1) {
                 cadastroUser(user, prest);
@@ -740,14 +1148,14 @@ void App::start() { // em c++ precisar construir o metod fora da classe
             }
             break;
         case 2:
-            login(user, prest);
+            login(user, prest, informacoes);
             break;
         case 3:
-
+            system("cls");
             selectData(dir);
             break;
         case 4:
-            cout << "*********PRESTADORES*********";
+            system("cls");
             selectPrest(dir);
             break;
         case 5:
